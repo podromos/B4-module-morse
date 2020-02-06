@@ -21,46 +21,46 @@ MODULE_PARM_DESC(write_period,"Période d'écriture en micro secondes");
 
 static char* letter_morse_code[26]=
 	{
-		".-", 		//A
-		"-...",		//B
-		"-.-.",		//C
-		"-..",		//D
-		".",		//E
-		"..-.",		//F
-		"--.",		//G
-		"....",		//H
-		"..",		//I
-		".---",		//J
-		"-.-",		//K
-		".-..",		//L
-		"--",		//M
-		"-.",		//N
-		"---",		//O
-		".--.",		//P
-		"--.-",		//Q
-		".-.",		//R
-		"...",		//S
-		"-",		//T
-		"..-",		//U
-		"...-",		//V
-		".--",		//W
-		"-..-",		//X
-		"-.--",		//Y
-		"--..",		//Z
+		{1,2,0}, 		//A
+		{2,1,1,1,0}, 	//B
+		{2,1,2,1,0},	//C
+		{2,1,1,0},		//D
+		{1,0},			//E
+		{1,1,2,1,0},	//F
+		{2,2,1,0},		//G
+		{1,1,1,1,0},	//H
+		{1,1,0},		//I
+		{1,2,2,2,0},	//J
+		{2,1,2,0},		//K
+		{1,2,1,1,0},	//L
+		{2,2,0},		//M
+		{2,1,0},		//N
+		{2,2,2,0},		//O
+		{1,2,2,1,0},	//P
+		{2,2,1,2,1},	//Q
+		{1,2,1,0},		//R
+		{1,1,1,0},		//S
+		{2,0},			//T
+		{1,1,2,0},		//U
+		{1,1,1,2,0},	//V
+		{1,2,2,0},		//W
+		{2,1,1,2,0},	//X
+		{2,1,2,2,0},	//Y
+		{2,2,1,1,0},	//Z
 	}; 
 
 static char* digit_morse_code[10]=
 	{
-		".----",	//0
-		"..---",	//1
-		"...--",	//2
-		"....-",	//3
-		".....",	//4
-		"-....",	//5
-		"--...",	//6
-		"---..",	//7
-		"----.",	//8
-		"-----",	//9
+		{1,2,2,2,2,0}, //0
+		{1,1,2,2,2,0}, //1
+		{1,1,1,2,2,0}, //2
+		{1,1,1,1,2,0}, //3
+		{1,1,1,1,1,0}, //4
+		{2,1,1,1,1,0}, //5
+		{2,2,1,1,1,0}, //6
+		{2,2,2,1,1,0}, //7
+		{2,2,2,2,1,0}, //8
+		{2,2,2,2,2,0}, //9
 	};
 
 struct node{
@@ -81,6 +81,7 @@ static morse_tree_t morse_tree_create(void){
 
 	return tree;
 }
+
 static void morse_tree_free(morse_tree_t tree){
 	if(tree->ti_tree!=NULL){
 		morse_tree_free(tree->ti_tree);
@@ -128,6 +129,7 @@ static morse_tree_t morse_tree_init(morse_tree_t tree){
 static morse_tree_t morse_tree;
 
 static char morse_code_to_char(morse_tree_t tree,char* morse_code){
+	
 	while(*morse_code!='\0'){
 		if (tree==NULL){
 			return 0;
@@ -155,6 +157,23 @@ static char* char_to_morse_code(char c){
 	}
 }
 
+/* Conversion MORSE / bits */
+
+struct bit_code{
+	unsigned char nb_bit;
+	unsigned char bit_code;
+}
+
+struct bit_code morse_bit_code[4]=
+{
+	{.nb_bit=2, .bit_code=0x00}, 	// fin d'un caractère morse
+	{.nb_bit=2, .bit_code=0x01},	// tih
+	{.nb_bit=4, .bit_code=0x07},	// taah
+	{.nb_bit=4, .bit_code=0x00},	// espace
+};
+
+
+
 /* Ecriture */
 struct write_data{
 	/* Buffer des données ascii à écrire */
@@ -167,6 +186,7 @@ struct write_data{
 	char* cur_morse_code;
 	uint8_t cur_morse_code_pos;
 	uint8_t count;
+	
 	/* Données timer */
 	struct timer_list timer;
 	unsigned long period;
