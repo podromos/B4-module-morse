@@ -1,6 +1,8 @@
 #include "morse_write.h"
 #include "conversion.h"
 
+#define RPI_GPIO_OUT 24
+
 /* Données d'écriture */
 struct write_data{
 	/* Flag d'attente */
@@ -26,11 +28,14 @@ static void write_timer_routine(struct timer_list* timer);
 
 void init_morse_write(unsigned long period){
 	w_data.period=period;
+	gpio_request(RPI_GPIO_OUT,THIS_MODULE->name);
+	gpio_direction_output(RPI_GPIO_OUT,0);
 	timer_setup_on_stack(&(w_data.timer),write_timer_routine,0 );
 }
 
 void free_morse_write(){
 	del_timer (&(w_data.timer));
+	gpio_free(RPI_GPIO_OUT);
 }
 
 
@@ -74,20 +79,6 @@ static void free_write_data(void){
 	kfree(w_data.buffer);
 }
 
-ssize_t morse_write(struct file * fil, const char * buff, size_t len, loff_t* off){
-	printk("DEBUT WRITE\n");
-	if (buff==NULL){
-		return 0;
-	}
-	printk(KERN_INFO"DEBUT write = %.*s\n",(int)len,buff);
-	init_write_data(buff,len);
-	add_timer (&(w_data.timer));
-	/* Attend la fin de l'écriture */
-	wait_event_interruptible(w_data.wait_queue,w_data.end);
-	free_write_data();
-	printk(KERN_INFO"FIN TERMINE\n");
-	return len;
-}
 
 static void write_timer_routine(struct timer_list* timer){
 	if (w_data.end){
@@ -97,6 +88,7 @@ static void write_timer_routine(struct timer_list* timer){
 	mod_timer (timer , jiffies + w_data.period);
 
 	/* Ecriture */
+	gpio_set_value(RPI_GPIO_OUT, w_data.cur_bit_code.bit_code&0x01);
 	printk(KERN_DEBUG" WRITE = %d\n",w_data.cur_bit_code.bit_code&0x01);
 	/* Mise à jour des données d'écriture */
 	w_data.cur_bit_code.nb_bits--;
@@ -132,4 +124,19 @@ static void write_timer_routine(struct timer_list* timer){
 			}
 		}
 	}
+}
+
+ssize_t morse_write(struct file * fil, const char * buff, size_t len, loff_t* off){
+	printk("DEBUT WRITE\n");
+	if (buff==NULL){
+		return 0;
+	}
+	printk(KERN_INFO"DEBUT write = %.*s\n",(int)len,buff);
+	init_write_data(buff,len);
+	add_timer (&(w_data.timer));
+	/* Attend la fin de l'écriture */
+	wait_event_interruptible(w_data.wait_queue,w_data.end);
+	free_write_data();
+	printk(KERN_INFO"FIN TERMINE\n");
+	return len;
 }
