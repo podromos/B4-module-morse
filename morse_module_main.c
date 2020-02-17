@@ -10,6 +10,7 @@
 
 #include "conversion.h"
 #include "morse_write.h"
+#include "morse_read_gpio.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sheryar Masood, Kossivi Kougblenou & Baptiste Lambert");
@@ -18,7 +19,8 @@ MODULE_VERSION("0.01");
 
 /* Paramètres */
 
-static uint write_period=1000;
+static uint write_period=20000;
+static uint read_period=20000;
 module_param(write_period,uint,0);
 MODULE_PARM_DESC(write_period,"Période d'écriture en micro secondes");
 
@@ -50,10 +52,10 @@ static struct file_operations fops =
 /* Fonction du module*/
 
 static int __init morse_init(void) {
-	char c,cf;
-	char* tmp;
-	
+
 	morse_tree_init();
+	/* initialisation de la lecture sur les GPIO*/
+	init_read_gpio(read_period*HZ/1000000);
 	/* initialisation de l'écriture*/
 	init_morse_write(write_period*HZ/1000000);
 
@@ -64,25 +66,14 @@ static int __init morse_init(void) {
 	else {
 		printk (KERN_ALERT "registration success\n");
 	}
-	
-	for (c='A';c<='Z';c++){
-		tmp=char_to_morse_code(c);
-		if (tmp==NULL){
-			printk( "error char = %c \n",c);
-		}
-		cf=morse_code_to_char(tmp);
-		if (cf==0){
-			printk( "error str = %s \n",tmp);
-		}
-		printk( "%c = %c \n",c,cf);
-	}
-	
+	printk(KERN_INFO"INIT OK\n");
 	return 0;
 }
 
 static void __exit morse_exit(void) {
 	unregister_chrdev(90,"mon_device");
 	free_morse_write();
+	free_read_gpio();
 	morse_tree_free();
 	printk(KERN_INFO "Goodbye, World!\n");
 }

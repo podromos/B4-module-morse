@@ -8,13 +8,14 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
+#include "conversion.h"
 
-#ifndef MY_MORSE_WRITE_H
-#define MY_MORSE_WRITE_H
+#ifndef MY_MORSE_READ_GPIO_H
+#define MY_MORSE_READ_GPIO_H
 
-void init_morse_write(unsigned long period);
+void init_read_gpio(unsigned long read_period);
 
-ssize_t morse_write(struct file * fil, const char * buff, size_t len, loff_t* off);
+void free_read_gpio(void);
 
-void free_morse_write(void);
 #endif

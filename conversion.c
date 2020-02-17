@@ -57,7 +57,7 @@ static struct bit_code morse_bit_code[4]=
 
 static morse_tree_t morse_tree;
 
-inline const struct bit_code* get_bit_code(int i){
+const struct bit_code* get_bit_code(int i){
 	return &morse_bit_code[i];
 }
 
@@ -65,19 +65,19 @@ static morse_tree_t morse_tree_create(void){
 	morse_tree_t tree = 
 		(morse_tree_t)kmalloc(sizeof(struct node),GFP_KERNEL);
 
-	tree->root=0;
-	tree->taah_tree=NULL;
-	tree->ti_tree=NULL;
+	tree->root=-1;
+	tree->one=NULL;
+	tree->zero=NULL;
 
 	return tree;
 }
 
 static void morse_tree_free_aux(morse_tree_t tree){
-	if(tree->ti_tree!=NULL){
-		morse_tree_free_aux(tree->ti_tree);
+	if(tree->zero!=NULL){
+		morse_tree_free_aux(tree->zero);
 	}
-	if(tree->taah_tree!=NULL){
-		morse_tree_free_aux(tree->taah_tree);
+	if(tree->one!=NULL){
+		morse_tree_free_aux(tree->one);
 	}
 	kfree(tree);
 }
@@ -88,23 +88,75 @@ void morse_tree_free(void){
 	}
 }
 
-static void morse_tree_add_char( char* morse_code,char c){
-	morse_tree_t tree=morse_tree;
-	while(*morse_code!='\0'){
-		if(*morse_code==1){
-			if(tree->ti_tree==NULL)
-				tree->ti_tree=morse_tree_create();
-			tree=tree->ti_tree;
+static int morse_tree_add_morse_char(morse_tree_t* ptree,int morse_char,char c){
+
+	int count=morse_bit_code[morse_char].nb_bits;
+	unsigned char bits = morse_bit_code[morse_char].bit_code;
+	morse_tree_t tree=*ptree;
+
+	while (count>0){
+		if (bits&0x01){
+			if (tree->one==NULL){
+				tree->one=morse_tree_create();
+			}
+			tree=tree->one;
 		}
 		else{
-			if(tree->taah_tree==NULL)
-				tree->taah_tree=morse_tree_create();
-			tree=tree->taah_tree;
+			if (tree->zero==NULL){
+				tree->zero=morse_tree_create();
+			}
+			tree=tree->zero;
 		}
-		morse_code++;
+		count--;
+		bits>>=1;
 	}
-	tree->root=c;
+	if (morse_char==0){
+		tree->root=c;
+		return 1;
+	}
+	*ptree=tree;
+	return 0;
 }
+
+static void morse_tree_add_char(char* morse_code,char c){
+	morse_tree_t tree=morse_tree;
+	int i=0;
+	while(!morse_tree_add_morse_char(&tree,morse_code[i],c)){
+		i++;
+	}
+}
+
+char convert_bit_to_char_online(int bit){
+	static morse_tree_t tree;
+	switch(bit){
+		case RESET:
+			tree=morse_tree;
+			return 0;
+			break;
+		case 1:
+			if (tree->one==NULL){
+				return tree->root;
+			}
+			else{
+				tree=tree->one;
+				return 0;
+			}
+			break;
+		case 0:
+			if (tree->zero==NULL){
+				return tree->root;
+			}
+			else{
+				tree=tree->zero;
+				return 0;
+			}
+			break;
+		default:
+			return -1;
+	}
+}
+
+
 
 void morse_tree_init(void){
 	char c;
@@ -120,24 +172,9 @@ void morse_tree_init(void){
 		morse_tree_add_char(digit_morse_code[i],c);
 		c++;
 	}
+	morse_tree_add_char(space_morse_code,' ');
 }
 
-char morse_code_to_char(char* morse_code){
-	morse_tree_t tree=morse_tree;
-	while(*morse_code!='\0'){
-		if (tree==NULL){
-			return 0;
-		}
-		if (*morse_code==1){
-			tree=tree->ti_tree;
-		}
-		else{
-			tree=tree->taah_tree;
-		}
-		morse_code++;
-	}
-	return tree->root;
-}
 
 char* char_to_morse_code(char c){
 	if ((c>='A') && (c<='Z')){
